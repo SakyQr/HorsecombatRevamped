@@ -1,0 +1,38 @@
+name: HorsecombatRevampedAgain
+version: 'Beta-1.5'
+main: org.SakyQ.horsecombatRevampedAgain.HorsecombatRevampedAgain
+api-version: '1.20.1'
+author: 'SakyQ'
+description: Custom horse combat and spawning system
+softdepend: [Towny]
+commands:
+  horsecombat:
+    description: Main command for HorseCombatRevampedAgain
+    usage: /horsecombat [reload|debug|spawnhorse|checkregion|listregs]
+    permission: horsecombat.use
+  givelance:
+    description: Command to give lance to players
+    usage: /givelance [player] [lance]
+    permission: horsecombat.givelance
+permissions:
+  horsecombat.use:
+    description: Allows use of basic horsecombat commands
+    default: true
+  horsecombat.reload:
+    description: Allows reloading the configuration
+    default: op
+  horsecombat.debug:
+    description: Allows toggling debug mode
+    default: op
+  horsecombat.admin:
+    description: Allows administrative commands like spawning horses
+    default: op
+  horsecombat.givelance:
+     description: Allows giving lance to players
+     default: op
+  horsecombat.bypass.towncheck:
+    description: Allows bypassing the town check when spawning horses
+    default: op
+  horsecombat.towny.spawnhorses:
+    description: Allows spawning horses in towns
+    default: op

@@ -1,0 +1,4 @@
+package org.SakyQ.horsecombatRevampedAgain.Commands
+
+class GiveLanceTabCompleter {
+}

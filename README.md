@@ -11,7 +11,7 @@ A Minecraft plugin that enhances horse combat gameplay with customizable horse s
 
 ## Installation
 
-1. Download the latest release from [GitHub Releases](https://github.com/YourUsername/HorsecombatRevampedAgain/releases)
+1. Download the plugin JAR file
 2. Place the JAR file in your server's `plugins` folder
 3. Restart your server
 4. Edit the configuration file to customize settings
@@ -146,14 +146,16 @@ When Towny is installed and enabled in the config, the plugin will respect town 
 
 If you see `Unresolved reference` errors in the console related to Towny, this is normal when Towny is not installed. The plugin handles this gracefully and will run without Towny integration.
 
-## Support
-
-For support, please open an issue on the [GitHub repository](https://github.com/YourUsername/HorsecombatRevampedAgain/issues).
-
 ## License
 
-This plugin is released under the [MIT License](LICENSE).
+This plugin is released under the GNU Affero General Public License v3.0 (AGPL-3.0). This license ensures that:
+- Users can use, modify, and distribute the plugin
+- Any modified versions must also be released under the AGPL-3.0
+- The source code must remain available to all users
+- The plugin cannot be incorporated into proprietary software
 
 ## Credits
 
-Developed by SakyQ
+Developed by sakyQr
+
+Discord is SakyQ

@@ -36,6 +36,7 @@ class HorseSpawnListener(private val plugin: HorsecombatRevampedAgain) : Listene
     private val random = Random()
     private val spawnRegions = mutableListOf<SpawnRegionInfo>()
     private val debugPlayers = mutableSetOf<UUID>()
+    private val playersInRegions = mutableMapOf<UUID, SpawnRegionInfo?>()
 
     init {
         loadRegionsFromConfig()
@@ -58,6 +59,14 @@ class HorseSpawnListener(private val plugin: HorsecombatRevampedAgain) : Listene
             plugin.logger.info("  Spawn chance: ${region.spawnChance}")
         }
         plugin.logger.info("================================")
+    }
+
+    fun isPlayerInRegion(player: Player): Boolean {
+        return playersInRegions[player.uniqueId] != null
+    }
+
+    fun getPlayerRegionInfo(player: Player): SpawnRegionInfo? {
+        return playersInRegions[player.uniqueId]
     }
 
     // Load regions from config
@@ -164,17 +173,17 @@ class HorseSpawnListener(private val plugin: HorsecombatRevampedAgain) : Listene
         val location = player.location
         val region = findMatchingRegion(location)
 
+        // Update the player's region status
+        playersInRegions[player.uniqueId] = region
+
+        // Only show debug messages if player has debug enabled
         if (region != null) {
-            // Player is in a horse spawn region - provide debug info
-            if (!debugPlayers.contains(player.uniqueId)) {
+            if (debugPlayers.contains(player.uniqueId)) {
                 player.sendMessage("§6[Debug] You are in a horse spawn region: ${region.color} horses can spawn here")
-                debugPlayers.add(player.uniqueId)
             }
         } else {
-            // Player left a region
             if (debugPlayers.contains(player.uniqueId)) {
                 player.sendMessage("§6[Debug] You left the horse spawn region")
-                debugPlayers.remove(player.uniqueId)
             }
         }
     }
@@ -274,6 +283,7 @@ class HorseSpawnListener(private val plugin: HorsecombatRevampedAgain) : Listene
     }
 
     // Check if horse spawn should be allowed at this location
+// Check if horse spawn should be allowed at this location
     fun canSpawnAtLocation(location: Location, player: Player? = null): Boolean {
         // Check if TownyAPI is available
         if (plugin.shouldRespectTowny()) {
@@ -300,10 +310,15 @@ class HorseSpawnListener(private val plugin: HorsecombatRevampedAgain) : Listene
             }
         }
 
-        // Also check if location is in water
+        // Get the block at the location and the block below
         val block = location.block
+        val blockBelow = block.getRelative(0, -1, 0)
+
+        // Check if location is in water, lava, or problematic biomes
         if (block.type == Material.WATER ||
-            block.getRelative(0, -1, 0).type == Material.WATER ||
+            block.type == Material.LAVA ||
+            blockBelow.type == Material.WATER ||
+            blockBelow.type == Material.LAVA ||
             block.biome == Biome.RIVER ||
             block.biome == Biome.SWAMP ||
             block.biome == Biome.WARM_OCEAN ||
@@ -314,11 +329,17 @@ class HorseSpawnListener(private val plugin: HorsecombatRevampedAgain) : Listene
             block.biome == Biome.DEEP_FROZEN_OCEAN ||
             block.biome == Biome.DEEP_LUKEWARM_OCEAN ||
             block.biome == Biome.MANGROVE_SWAMP) {
-            plugin.logger.info("[DEBUG] Horse spawn prevented in water")
-            player?.sendMessage("§c[HorseCombat] Horses cannot spawn in water!")
+            plugin.logger.info("[DEBUG] Horse spawn prevented in water/lava")
+            player?.sendMessage("§c[HorseCombat] Horses cannot spawn in water or lava!")
             return false
         }
 
+        // Ensure the block below is solid
+        if (!blockBelow.type.isSolid) {
+            plugin.logger.info("[DEBUG] Horse spawn prevented - no solid block underneath")
+            player?.sendMessage("§c[HorseCombat] Horses must spawn on solid ground!")
+            return false
+        }
 
         return true
     }

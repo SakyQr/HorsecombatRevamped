@@ -5,6 +5,7 @@ import org.SakyQ.horsecombatRevampedAgain.Commands.GiveLanceTabCompleter
 import org.SakyQ.horsecombatRevampedAgain.Commands.HorseCombatTabCompleter
 import org.SakyQ.horsecombatRevampedAgain.listeners.HorseCombatListener
 import org.SakyQ.horsecombatRevampedAgain.listeners.HorseSpawnListener
+import org.SakyQ.horsecombatRevampedAgain.placeholders.HorseCombatPlaceholders
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
@@ -24,6 +25,7 @@ class HorsecombatRevampedAgain : JavaPlugin() {
         // Save default config if it doesn't exist
         saveDefaultConfig()
 
+
         // Check for Towny integration
         if (server.pluginManager.getPlugin("Towny") != null && config.getBoolean("towny.enabled", true)) {
             townyEnabled = true
@@ -40,6 +42,7 @@ class HorsecombatRevampedAgain : JavaPlugin() {
         // Register listeners
         server.pluginManager.registerEvents(horseSpawnListener, this)
         server.pluginManager.registerEvents(horseCombatListener, this)
+        setupPlaceholders()
 
         // Register commands
         val giveLanceCommand = GiveLanceCommand(this)
@@ -58,8 +61,25 @@ class HorsecombatRevampedAgain : JavaPlugin() {
         logger.info("HorseCombatRevampedAgain enabled successfully!")
     }
 
+
+
     override fun onDisable() {
         logger.info("HorseCombatRevampedAgain disabled")
+    }
+
+    private fun setupPlaceholders() {
+        // Check if PlaceholderAPI is present
+        if (server.pluginManager.getPlugin("PlaceholderAPI") != null) {
+            logger.info("PlaceholderAPI found, registering placeholders...")
+            val placeholders = HorseCombatPlaceholders(this, horseSpawnListener)
+            if (placeholders.register()) {
+                logger.info("HorseCombat placeholders registered successfully!")
+            } else {
+                logger.warning("Failed to register HorseCombat placeholders!")
+            }
+        } else {
+            logger.info("PlaceholderAPI not found, placeholders won't be available")
+        }
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {

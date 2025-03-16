@@ -16,12 +16,19 @@ repositories {
     }
     maven( "https://jitpack.io") {
     }
+
+    maven("https://repo.extendedclip.com/content/repositories/placeholderapi/"){
+    }
+
+
+
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
     compileOnly ("com.github.TownyAdvanced:Towny:0.101.1.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    compileOnly ("me.clip:placeholderapi:2.11.6")
 }
 
 val targetJavaVersion = 21

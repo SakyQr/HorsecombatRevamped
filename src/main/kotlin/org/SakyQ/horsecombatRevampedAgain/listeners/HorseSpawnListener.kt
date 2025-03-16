@@ -305,11 +305,20 @@ class HorseSpawnListener(private val plugin: HorsecombatRevampedAgain) : Listene
         if (block.type == Material.WATER ||
             block.getRelative(0, -1, 0).type == Material.WATER ||
             block.biome == Biome.RIVER ||
-            block.biome == Biome.FROZEN_RIVER) {
+            block.biome == Biome.SWAMP ||
+            block.biome == Biome.WARM_OCEAN ||
+            block.biome == Biome.LUKEWARM_OCEAN ||
+            block.biome == Biome.COLD_OCEAN ||
+            block.biome == Biome.FROZEN_OCEAN ||
+            block.biome == Biome.DEEP_OCEAN ||
+            block.biome == Biome.DEEP_FROZEN_OCEAN ||
+            block.biome == Biome.DEEP_LUKEWARM_OCEAN ||
+            block.biome == Biome.MANGROVE_SWAMP) {
             plugin.logger.info("[DEBUG] Horse spawn prevented in water")
             player?.sendMessage("§c[HorseCombat] Horses cannot spawn in water!")
             return false
         }
+
 
         return true
     }

@@ -42,6 +42,18 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
         if (event.isCancelled) return
 
         // Add Towny checks
+        // Replace this section in your onPlayerAttack method:
+
+// Replace your Towny check section with this updated version:
+
+// Replace your Towny check section with this properly fixed reflection version:
+
+// Replace your Towny check section with this properly fixed reflection version:
+
+// Add Towny checks
+        // Replace your Towny check section with this more robust version:
+
+// Add Towny checks
         if (plugin.shouldRespectTowny()) {
             val damagerLoc = damager.location
             val targetLoc = target.location
@@ -49,47 +61,134 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
             try {
                 // Get TownyAPI safely through the main plugin
                 val townyAPI = plugin.getTownyAPI()
+                if (townyAPI == null) {
+                    plugin.logger.warning("Towny API is null, skipping protection check")
+                    return
+                }
 
-                // Use reflection to call methods
-                val getTownMethod = townyAPI?.javaClass?.getMethod("getTown", Location::class.java)
-                val town = getTownMethod?.invoke(townyAPI, targetLoc)
+                // Use reflection to call methods with better error handling
+                val townyAPIClass = townyAPI.javaClass
+
+                // Get Town using reflection
+                val getTownMethod = try {
+                    townyAPIClass.getMethod("getTown", Location::class.java)
+                } catch (e: Exception) {
+                    plugin.logger.warning("Error finding getTown method: ${e.message}")
+                    return
+                }
+
+                val town = try {
+                    getTownMethod.invoke(townyAPI, targetLoc)
+                } catch (e: Exception) {
+                    plugin.logger.warning("Error calling getTown: ${e.message}")
+                    return
+                }
 
                 if (town != null) {
-                    // Get the resident
-                    val getResidentMethod = townyAPI?.javaClass?.getMethod("getResident", UUID::class.java)
-                    val resident = getResidentMethod?.invoke(townyAPI, damager.uniqueId)
+                    // Check if war is active using reflection with multiple method name attempts
+                    val isWarTime = try {
+                        // Try different method names that might exist in different Towny versions
+                        val possibleWarMethods = listOf("isWarTime", "hasActiveWar", "isWarTimeNow", "isAtWar")
 
-                    // Check if war is active
-                    val isWarTimeMethod = townyAPI?.javaClass?.getMethod("isWarTime")
-                    val isWarTime = isWarTimeMethod?.invoke(townyAPI) as? Boolean ?: false
+                        var warResult = false
+                        var methodFound = false
 
-                    // If target is in a town and:
-                    // 1. There's no war
-                    // 2. Attacker doesn't belong to town
-                    // Then cancel the event
+                        for (methodName in possibleWarMethods) {
+                            try {
+                                val method = townyAPIClass.getMethod(methodName)
+                                warResult = method.invoke(townyAPI) as? Boolean ?: false
+                                methodFound = true
+                                // Debug message for successful method
+                                if (plugin.config.getBoolean("debug", false)) {
+                                    plugin.logger.info("Successfully used war check method: $methodName")
+                                }
+                                break
+                            } catch (e: Exception) {
+                                // Just continue to the next method
+                                continue
+                            }
+                        }
+
+                        if (!methodFound && plugin.config.getBoolean("debug", false)) {
+                            plugin.logger.warning("No war check methods found in Towny API")
+                        }
+
+                        warResult
+                    } catch (e: Exception) {
+                        plugin.logger.warning("Error checking war status: ${e.message}")
+                        false // Default to no war if method fails
+                    }
+
+                    // If target is in a town and there's no war
                     if (!isWarTime) {
                         val townClass = town.javaClass
-                        val hasResidentMethod = townClass.getMethod("hasResident", UUID::class.java)
-                        val hasResident = hasResidentMethod.invoke(town, damager.uniqueId) as? Boolean ?: false
 
-                        if (resident == null || !hasResident) {
-                            // Check if PvP is allowed in this town
-                            val isPVPMethod = townClass.getMethod("isPVP")
-                            val isPVP = isPVPMethod.invoke(town) as? Boolean ?: false
+                        // Check if attacker is resident using reflection
+                        val hasResident = try {
+                            val hasResidentMethod = townClass.getMethod("hasResident", UUID::class.java)
+                            hasResidentMethod.invoke(town, damager.uniqueId) as? Boolean ?: false
+                        } catch (e: Exception) {
+                            // Try alternative method if first fails
+                            try {
+                                val hasResidentMethod = townClass.getMethod("hasResident", String::class.java)
+                                hasResidentMethod.invoke(town, damager.uniqueId.toString()) as? Boolean ?: false
+                            } catch (e2: Exception) {
+                                plugin.logger.warning("Error checking residence: ${e2.message}")
+                                false // Default to not resident if method fails
+                            }
+                        }
+
+                        if (!hasResident) {
+                            // Check if PvP is allowed in this town using reflection
+                            val isPVP = try {
+                                val isPVPMethod = townClass.getMethod("isPVP")
+                                isPVPMethod.invoke(town) as? Boolean ?: false
+                            } catch (e: Exception) {
+                                // Try alternative PvP check methods
+                                try {
+                                    val isPVPMethod = townClass.getMethod("isForcePVP")
+                                    isPVPMethod.invoke(town) as? Boolean ?: false
+                                } catch (e2: Exception) {
+                                    try {
+                                        val isPVPMethod = townClass.getMethod("getPVP")
+                                        isPVPMethod.invoke(town) as? Boolean ?: false
+                                    } catch (e3: Exception) {
+                                        plugin.logger.warning("Error checking PVP status: ${e3.message}")
+                                        false // Default to PVP not allowed if method fails
+                                    }
+                                }
+                            }
 
                             if (!isPVP) {
-                                damager.sendMessage("§c[HorseCombat] You cannot attack in this town!")
-                                event.isCancelled = true
-                                return
+                                // Check if mob protection is enabled
+                                val protectMobs = plugin.config.getBoolean("towny.protectMobs", true)
+
+                                // If target is a player OR (target is a mob AND we protect mobs)
+                                if (target is Player || protectMobs) {
+                                    // Debug message
+                                    if (plugin.config.getBoolean("debug", false)) {
+                                        plugin.logger.info("Blocking attack: target=${target.type}, isPlayer=${target is Player}, protectMobs=$protectMobs")
+                                    }
+
+                                    damager.sendMessage("§c[HorseCombat] You cannot attack in this town!")
+                                    event.isCancelled = true
+                                    return
+                                }
+                                // Otherwise allow the attack (mob + protectMobs=false)
                             }
                         }
                     }
                 }
             } catch (e: Exception) {
                 plugin.logger.warning("Error checking Towny protection: ${e.message}")
+                // Add stack trace printing for more detailed debugging
+                if (plugin.config.getBoolean("debug", false)) {
+                    e.printStackTrace()
+                }
             }
         }
 
+        // Rest of the code remains unchanged...
         // Skip if the attacker is not a player
         if (damager !is Player) return
 
@@ -103,6 +202,7 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
         if (entitiesBeingDamaged.contains(targetUuid)) {
             return
         }
+
 
         val lance = damager.inventory.itemInMainHand
         val meta = lance.itemMeta

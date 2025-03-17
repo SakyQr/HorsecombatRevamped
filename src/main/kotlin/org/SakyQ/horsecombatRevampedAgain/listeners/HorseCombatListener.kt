@@ -14,6 +14,7 @@ import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.event.vehicle.VehicleEnterEvent
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import org.bukkit.util.Vector
@@ -33,6 +34,27 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
     // Set to track entities currently being damaged to prevent infinite loops
     private val entitiesBeingDamaged: MutableSet<UUID> = HashSet()
 
+    private val originalXp = mutableMapOf<Player, Float>()
+
+    @EventHandler
+    fun onPlayerMountHorse(event: VehicleEnterEvent) {
+        if (event.vehicle is Horse && event.entered is Player) {
+            val player = event.entered as Player
+
+            // Store player's original XP directly
+            storeOriginalXp(player, player.exp)
+        }
+    }
+
+    fun storeOriginalXp(player: Player, xp: Float) {
+        originalXp[player] = xp
+    }
+
+    // Method to get original XP
+    fun getOriginalXp(player: Player): Float {
+        return originalXp[player] ?: 0f
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     fun onPlayerAttack(event: EntityDamageByEntityEvent) {
         val damager = event.damager
@@ -41,19 +63,6 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
         // Skip if the event is already cancelled (e.g., by a claim plugin)
         if (event.isCancelled) return
 
-        // Add Towny checks
-        // Replace this section in your onPlayerAttack method:
-
-// Replace your Towny check section with this updated version:
-
-// Replace your Towny check section with this properly fixed reflection version:
-
-// Replace your Towny check section with this properly fixed reflection version:
-
-// Add Towny checks
-        // Replace your Towny check section with this more robust version:
-
-// Add Towny checks
         if (plugin.shouldRespectTowny()) {
             val damagerLoc = damager.location
             val targetLoc = target.location

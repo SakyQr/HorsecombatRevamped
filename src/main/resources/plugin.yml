@@ -1,38 +1,69 @@
-name: HorsecombatRevampedAgain
-version: 'Beta-1.9'
+name: HorseCombatRevampedAgain
+version: '2.0'
 main: org.SakyQ.horsecombatRevampedAgain.HorsecombatRevampedAgain
 api-version: '1.20.1'
-author: 'SakyQ'
-description: Custom horse combat and spawning system
-softdepend: [PlaceholderAPI, Towny]
+authors: [SakyQ]
+description: Overhaul of the horse combat system
+softdepend: [Towny, PlaceholderAPI]
+
 commands:
   horsecombat:
-    description: Main command for HorseCombatRevampedAgain
-    usage: /horsecombat [reload|debug|spawnhorse|checkregion|listregs]
-    permission: horsecombat.use
+    description: Main command for HorseCombat
+    usage: /<command> [help|reload|debug|checkregion|listregs]
+    aliases: [hc]
+
   givelance:
-    description: Command to give lance to players
-    usage: /givelance [player] [lance]
-    permission: horsecombat.givelance
+    description: Give a lance to yourself or another player
+    usage: /<command> [player]
+    aliases: [lance]
+
+  hcbypass:
+    description: Toggle Towny protection bypass for admins
+    usage: /<command> [toggle|on|off|status]
+    aliases: [hctb]
+
+  hcadmin:
+    description: Open the HorseCombat admin GUI
+    usage: /<command>
+    aliases: [hca]
+
+  horseegg:
+    description: Get a custom horse spawn egg
+    usage: /<command> <type>
+    aliases: [hegg]
+
 permissions:
-  horsecombat.use:
-    description: Allows use of basic horsecombat commands
-    default: true
-  horsecombat.reload:
-    description: Allows reloading the configuration
+  horsecombat.admin:
+    description: Allows access to all HorseCombat admin commands
     default: op
+    children:
+      horsecombat.admin.reload: true
+      horsecombat.admin.gui: true
+      horsecombat.admin.townybypass: true
+      horsecombat.debug: true
+      horsecombat.givelance: true
+      horsecombat.horseegg: true
+
+  horsecombat.admin.reload:
+    description: Allows reloading the HorseCombat configuration
+    default: op
+
+  horsecombat.admin.gui:
+    description: Allows access to the HorseCombat admin GUI
+    default: op
+
+  horsecombat.admin.townybypass:
+    description: Allows bypassing Towny protection
+    default: op
+
   horsecombat.debug:
     description: Allows toggling debug mode
     default: op
-  horsecombat.admin:
-    description: Allows administrative commands like spawning horses
-    default: op
+
   horsecombat.givelance:
-     description: Allows giving lance to players
-     default: op
-  horsecombat.bypass.towncheck:
-    description: Allows bypassing the town check when spawning horses
+    description: Allows giving a lance to players
     default: op
-  horsecombat.towny.spawnhorses:
-    description: Allows spawning horses in towns
+
+  horsecombat.horseegg:
+    description: Allows spawning custom horse eggs
     default: op

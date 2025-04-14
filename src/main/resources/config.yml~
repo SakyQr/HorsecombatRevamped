@@ -18,6 +18,8 @@ combat:
   slownessDuration: 100
   slownessLevel: 1
 
+
+
 towny:
   enabled: true
   # Allow horse spawning in towns?
@@ -27,15 +29,16 @@ towny:
   # Allow lance combat in wilderness only
   wildernessOnly: false
   # Whether mobs in towns should be protected
-  protectMobs: true 
+  protectMobs: true
 
 # Momentum settings
 momentum:
-  movementThreshold: 0.05   # Minimum distance to consider horse moving
-  stallTimeMs: 1000         # Time in milliseconds before resetting momentum when stopped
+  movementThreshold: 0.05   # Minimum distance to consider horse moving         # Time in milliseconds before resetting momentum when stopped
   turnThreshold: 30.0       # Angle change threshold for detecting sharp turns
   turnLoss: 10              # Momentum loss when making sharp turns
   straightGain: 1           # Momentum gain per tick when moving straight
+  stallTimeMs: 500
+  maxDecayRate: 20          # Maximum decay rate per tick when standing still
 
 # Display settings
 display:

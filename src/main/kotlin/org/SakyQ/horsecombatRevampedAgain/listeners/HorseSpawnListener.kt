@@ -283,7 +283,6 @@ class HorseSpawnListener(private val plugin: HorsecombatRevampedAgain) : Listene
     }
 
     // Check if horse spawn should be allowed at this location
-// Check if horse spawn should be allowed at this location
     fun canSpawnAtLocation(location: Location, player: Player? = null): Boolean {
         // Check if TownyAPI is available
         if (plugin.shouldRespectTowny()) {
@@ -314,6 +313,14 @@ class HorseSpawnListener(private val plugin: HorsecombatRevampedAgain) : Listene
         val block = location.block
         val blockBelow = block.getRelative(0, -1, 0)
 
+        // Check if location is underground (cave)
+        val highestBlock = location.world.getHighestBlockYAt(location)
+        if (location.y < highestBlock - 10) {
+            plugin.logger.info("[DEBUG] Horse spawn prevented in cave")
+            player?.sendMessage("§c[HorseCombat] Horses cannot spawn in caves!")
+            return false
+        }
+
         // Check if location is in water, lava, or problematic biomes
         if (block.type == Material.WATER ||
             block.type == Material.LAVA ||
@@ -328,9 +335,12 @@ class HorseSpawnListener(private val plugin: HorsecombatRevampedAgain) : Listene
             block.biome == Biome.DEEP_OCEAN ||
             block.biome == Biome.DEEP_FROZEN_OCEAN ||
             block.biome == Biome.DEEP_LUKEWARM_OCEAN ||
-            block.biome == Biome.MANGROVE_SWAMP) {
-            plugin.logger.info("[DEBUG] Horse spawn prevented in water/lava")
-            player?.sendMessage("§c[HorseCombat] Horses cannot spawn in water or lava!")
+            block.biome == Biome.MANGROVE_SWAMP ||
+            // Add beach biomes
+            block.biome == Biome.BEACH ||
+            block.biome == Biome.SNOWY_BEACH) {
+            plugin.logger.info("[DEBUG] Horse spawn prevented in water/lava/beach")
+            player?.sendMessage("§c[HorseCombat] Horses cannot spawn in water, lava, or beaches!")
             return false
         }
 

@@ -23,7 +23,6 @@ class HorseCombatTabCompleter : TabCompleter {
 
             if (sender.hasPermission("horsecombat.admin")) {
                 subcommands.add("spawnhorse")
-                subcommands.add("listregs")
             }
 
             // Filter by what the player has already typed

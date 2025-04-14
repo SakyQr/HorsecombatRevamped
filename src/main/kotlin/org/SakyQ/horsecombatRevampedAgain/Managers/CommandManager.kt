@@ -3,156 +3,148 @@ package org.SakyQ.horsecombatRevampedAgain.managers
 import org.SakyQ.horsecombatRevampedAgain.Commands.GiveLanceCommand
 import org.SakyQ.horsecombatRevampedAgain.Commands.GiveLanceTabCompleter
 import org.SakyQ.horsecombatRevampedAgain.Commands.HorseCombatTabCompleter
+import org.SakyQ.horsecombatRevampedAgain.Commands.TownyBypassCommand
 import org.SakyQ.horsecombatRevampedAgain.HorsecombatRevampedAgain
+import org.SakyQ.horsecombatRevampedAgain.gui.AdminGUI
+import org.bukkit.ChatColor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
-import org.bukkit.Location
 
 class CommandManager(private val plugin: HorsecombatRevampedAgain) {
 
-    // Reference to other managers
-    private val townyManager: TownyManager by lazy {
-        plugin.server.pluginManager.getPlugin("HorsecombatRevampedAgain")
-            .let { it as HorsecombatRevampedAgain }
-            .let { TownyManager(it) }
-    }
-
-    private val listenerManager: ListenerManager by lazy {
-        plugin.server.pluginManager.getPlugin("HorsecombatRevampedAgain")
-            .let { it as HorsecombatRevampedAgain }
-            .let { ListenerManager(it) }
-    }
+    private val giveLanceCommand = GiveLanceCommand(plugin)
+    private val giveLanceTabCompleter = GiveLanceTabCompleter()
+    private val horseCombatTabCompleter = HorseCombatTabCompleter()
+    private val townyBypassCommand = TownyBypassCommand(plugin)
+    private val adminGUI = AdminGUI(plugin)
 
     fun registerCommands() {
-        val giveLanceCommand = GiveLanceCommand(plugin)
-        val giveLanceTabCompleter = GiveLanceTabCompleter()
+        // Register existing commands
+        plugin.getCommand("givelance")?.setExecutor(giveLanceCommand)
+        plugin.getCommand("givelance")?.tabCompleter = giveLanceTabCompleter
 
-        plugin.getCommand("givelance")?.apply {
-            setExecutor(giveLanceCommand)
-            tabCompleter = giveLanceTabCompleter
+        // Make sure HorseCombat tab completer works
+        plugin.getCommand("horsecombat")?.tabCompleter = horseCombatTabCompleter
+
+        // Register new commands
+        plugin.getCommand("hcbypass")?.setExecutor(townyBypassCommand)
+        plugin.getCommand("hcbypass")?.tabCompleter = townyBypassCommand
+
+        // Register admin GUI command
+        plugin.getCommand("hcadmin")?.setExecutor { sender, _, _, _ ->
+            if (sender !is Player) {
+                sender.sendMessage("${ChatColor.RED}This command can only be used by players.")
+                return@setExecutor true
+            }
+
+            if (!sender.hasPermission("horsecombat.admin.gui")) {
+                sender.sendMessage("${ChatColor.RED}You don't have permission to use this command.")
+                return@setExecutor true
+            }
+
+            adminGUI.openAdminGui(sender)
+            true
         }
 
-        plugin.getCommand("horsecombat")?.apply {
-            setExecutor(plugin)
-            tabCompleter = HorseCombatTabCompleter()
+        // Register event listener for GUI
+        plugin.server.pluginManager.registerEvents(adminGUI, plugin)
+
+        // Log command registration for debug
+        if (plugin.isDebugEnabled()) {
+            plugin.logger.info("HorseCombat commands registered!")
+            plugin.logger.info("Tab completers registered: givelance, horsecombat, hcbypass")
         }
     }
 
     fun handleHorseCombatCommand(sender: CommandSender, args: Array<out String>): Boolean {
         if (args.isEmpty()) {
-            displayHelp(sender)
+            sender.sendMessage("${ChatColor.GOLD}HorseCombat ${ChatColor.GRAY}- ${ChatColor.WHITE}Version ${plugin.description.version}")
+            sender.sendMessage("${ChatColor.GRAY}Use /horsecombat help for a list of commands")
             return true
         }
 
         when (args[0].lowercase()) {
-            "reload" -> handleReloadCommand(sender)
-            "debug" -> handleDebugCommand(sender)
-            "spawnhorse" -> handleSpawnHorseCommand(sender)
-            "checkregion" -> handleCheckRegionCommand(sender)
-            "listregs" -> handleListRegionsCommand(sender)
-            else -> {
-                sender.sendMessage("§c[HorseCombat] Unknown command. Use /horsecombat for help.")
+            "reload" -> {
+                if (!sender.hasPermission("horsecombat.admin.reload")) {
+                    sender.sendMessage("${ChatColor.RED}You don't have permission to reload the plugin.")
+                    return true
+                }
+                plugin.reloadPlugin()
+                sender.sendMessage("${ChatColor.GREEN}HorseCombat configuration reloaded!")
+                return true
             }
-        }
 
-        return true
-    }
+            "debug" -> {
+                if (!sender.hasPermission("horsecombat.debug")) {
+                    sender.sendMessage("${ChatColor.RED}You don't have permission to toggle debug mode.")
+                    return true
+                }
 
-    private fun displayHelp(sender: CommandSender) {
-        sender.sendMessage("§6[HorseCombat] §7Available commands:")
-        sender.sendMessage("§6/horsecombat reload §7- Reload the configuration")
-        sender.sendMessage("§6/horsecombat debug §7- Toggle debug mode")
-        sender.sendMessage("§6/horsecombat spawnhorse §7- Force spawn a horse at your location")
-        sender.sendMessage("§6/horsecombat checkregion §7- Check if you're in a horse spawn region")
-        sender.sendMessage("§6/horsecombat listregs §7- List all configured horse spawn regions")
-    }
+                plugin.toggleDebugMode()
+                val status = if (plugin.isDebugEnabled()) "enabled" else "disabled"
+                sender.sendMessage("${ChatColor.GREEN}Debug mode is now $status!")
+                return true
+            }
 
-    private fun handleReloadCommand(sender: CommandSender) {
-        if (sender.hasPermission("horsecombat.reload")) {
-            plugin.reloadPlugin()
-            sender.sendMessage("§a[HorseCombat] Configuration reloaded!")
-        } else {
-            sender.sendMessage("§c[HorseCombat] You don't have permission to do that!")
-        }
-    }
+            "checkregion" -> {
+                if (sender !is Player) {
+                    sender.sendMessage("${ChatColor.RED}This command can only be used by players.")
+                    return true
+                }
 
-    private fun handleDebugCommand(sender: CommandSender) {
-        if (sender is Player && sender.hasPermission("horsecombat.debug")) {
-            listenerManager.getHorseSpawnListener().toggleDebug(sender)
-        } else {
-            sender.sendMessage("§c[HorseCombat] This command can only be used by players with permission!")
-        }
-    }
+                val horseSpawnListener = plugin.listenerManager.getHorseSpawnListener()
+                val region = horseSpawnListener.findMatchingRegion(sender.location)
 
-    private fun handleSpawnHorseCommand(sender: CommandSender) {
-        if (sender is Player && sender.hasPermission("horsecombat.admin")) {
-            // Get the player's location
-            val loc = sender.location
-
-            // Check if in a custom region
-            val region = listenerManager.getHorseSpawnListener().findMatchingRegion(loc)
-
-            if (region != null) {
-                sender.sendMessage("§a[HorseCombat] Attempting to spawn a custom horse...")
-                // Check Towny integration
-                if (listenerManager.getHorseSpawnListener().canSpawnAtLocation(loc, sender)) {
-                    listenerManager.getHorseSpawnListener().forceSpawnHorse(loc)
-                    sender.sendMessage("§a[HorseCombat] Horse spawned successfully!")
+                if (region != null) {
+                    sender.sendMessage("${ChatColor.GREEN}You are in the ${region.name} horse region!")
+                    sender.sendMessage("${ChatColor.GRAY}Horse Type: ${ChatColor.YELLOW}${region.style?.name ?: "None"}")
+                    sender.sendMessage("${ChatColor.GRAY}Horse Color: ${ChatColor.YELLOW}${region.color?.name ?: "None"}")
                 } else {
-                    sender.sendMessage("§c[HorseCombat] Cannot spawn horse at this location due to town protection!")
+                    sender.sendMessage("${ChatColor.RED}You are not in any horse region.")
                 }
-            } else {
-                sender.sendMessage("§c[HorseCombat] You are not in a configured horse spawn region!")
-                sender.sendMessage("§c[HorseCombat] Current location: ${loc.world.name} (${loc.blockX}, ${loc.blockZ})")
+                return true
             }
-        } else {
-            sender.sendMessage("§c[HorseCombat] You don't have permission to do that!")
+
+
+            "help" -> {
+                sender.sendMessage("${ChatColor.GOLD}HorseCombat Commands:")
+                sender.sendMessage("${ChatColor.GRAY}/horsecombat reload ${ChatColor.WHITE}- Reload the plugin configuration")
+                sender.sendMessage("${ChatColor.GRAY}/horsecombat debug ${ChatColor.WHITE}- Toggle debug mode")
+                sender.sendMessage("${ChatColor.GRAY}/horsecombat checkregion ${ChatColor.WHITE}- Check which horse region you're in")
+                sender.sendMessage("${ChatColor.GRAY}/horsecombat listregs ${ChatColor.WHITE}- List all horse regions")
+                sender.sendMessage("${ChatColor.GRAY}/horseegg <type> ${ChatColor.WHITE}- Get a horse spawn egg")
+                sender.sendMessage("${ChatColor.GRAY}/givelance [player] [type] ${ChatColor.WHITE}- Give a lance to a player")
+                sender.sendMessage("${ChatColor.GRAY}/hcbypass [toggle|on|off|status] ${ChatColor.WHITE}- Toggle Towny bypass")
+                sender.sendMessage("${ChatColor.GRAY}/hcadmin ${ChatColor.WHITE}- Open the admin GUI")
+                return true
+            }
+
+
+            "gui", "admin" -> {
+                if (sender !is Player) {
+                    sender.sendMessage("${ChatColor.RED}This command can only be used by players.")
+                    return true
+                }
+
+                if (!sender.hasPermission("horsecombat.admin.gui")) {
+                    sender.sendMessage("${ChatColor.RED}You don't have permission to use this command.")
+                    return true
+                }
+
+                adminGUI.openAdminGui(sender as Player)
+                return true
+            }
+            else -> {
+                sender.sendMessage("${ChatColor.RED}Unknown command. Use /horsecombat help for a list of commands.")
+                return true
+            }
+
+
         }
     }
 
-    private fun handleCheckRegionCommand(sender: CommandSender) {
-        if (sender is Player) {
-            // Get the player's location
-            val loc = sender.location
-
-            // Display current coordinates
-            sender.sendMessage("§6[HorseCombat] Your current location:")
-            sender.sendMessage("§7World: ${loc.world.name}")
-            sender.sendMessage("§7Coordinates: (${loc.blockX}, ${loc.blockY}, ${loc.blockZ})")
-
-            // Check if in a custom region
-            val region = listenerManager.getHorseSpawnListener().findMatchingRegion(loc)
-
-            if (region != null) {
-                sender.sendMessage("§a[HorseCombat] You are in a horse spawn region!")
-                sender.sendMessage("§7Horse type: ${region.color} with ${region.style} style")
-                sender.sendMessage("§7Region bounds: (${region.x1}, ${region.z1}) to (${region.x2}, ${region.z2})")
-
-                // Check Towny status
-                if (townyManager.shouldRespectTowny()) {
-                    try {
-                        val (inTown, townName) = townyManager.getTownAtLocation(loc)
-                        if (inTown && townName != null) {
-                            sender.sendMessage("§e[HorseCombat] Note: This location is in town: $townName")
-
-                            if (!plugin.config.getBoolean("towny.allowTownHorseSpawns", false)) {
-                                sender.sendMessage("§c[HorseCombat] Horses won't naturally spawn here due to town protection")
-                            }
-                        }
-                    } catch (e: Exception) {
-                        plugin.logger.warning("Error checking town at location: ${e.message}")
-                    }
-                }
-            } else {
-                sender.sendMessage("§c[HorseCombat] You are not in any configured horse spawn region.")
-            }
-        } else {
-            sender.sendMessage("§c[HorseCombat] This command can only be used by players!")
-        }
-    }
-
-    private fun handleListRegionsCommand(sender: CommandSender) {
-        sender.sendMessage("§6[HorseCombat] Configured horse spawn regions:")
-        listenerManager.getHorseSpawnListener().listRegions(sender)
+    // Getter for townyBypassCommand so it can be accessed by the GUI
+    fun getTownyBypassCommand(): TownyBypassCommand {
+        return townyBypassCommand
     }
 }

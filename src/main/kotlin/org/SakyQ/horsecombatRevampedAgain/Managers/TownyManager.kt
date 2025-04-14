@@ -2,6 +2,7 @@ package org.SakyQ.horsecombatRevampedAgain.managers
 
 import org.SakyQ.horsecombatRevampedAgain.HorsecombatRevampedAgain
 import org.bukkit.Location
+import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 
 class TownyManager(private val plugin: HorsecombatRevampedAgain) {
@@ -78,5 +79,16 @@ class TownyManager(private val plugin: HorsecombatRevampedAgain) {
             plugin.logger.warning("Error checking town at location: ${e.message}")
             return Pair(false, null)
         }
+    }
+
+    // New method to check if a player has town bypass permission
+    fun shouldBypassTowny(player: Player): Boolean {
+        // If Towny isn't enabled at all, no need to check bypass
+        if (!shouldRespectTowny()) return true
+
+        // If the player has the bypass permission and the bypass command has been used
+        val townyBypassCommand = plugin.commandManager.getTownyBypassCommand()
+        return player.hasPermission("horsecombat.admin.townybypass") &&
+                townyBypassCommand.hasBypass(player)
     }
 }

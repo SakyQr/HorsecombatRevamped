@@ -36,6 +36,10 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
 
     private val originalXp = mutableMapOf<Player, Float>()
 
+    // Store decay rate for rapid momentum drop
+    private val momentumDecayRates = mutableMapOf<UUID, Int>()
+
+
     @EventHandler
     fun onPlayerMountHorse(event: VehicleEnterEvent) {
         if (event.vehicle is Horse && event.entered is Player) {
@@ -63,7 +67,8 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
         // Skip if the event is already cancelled (e.g., by a claim plugin)
         if (event.isCancelled) return
 
-        if (plugin.shouldRespectTowny()) {
+        // Check for Towny bypass - add this check
+        if (damager is Player && plugin.shouldRespectTowny() && !plugin.townyManager.shouldBypassTowny(damager)) {
             val damagerLoc = damager.location
             val targetLoc = target.location
 
@@ -71,7 +76,9 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                 // Get TownyAPI safely through the main plugin
                 val townyAPI = plugin.getTownyAPI()
                 if (townyAPI == null) {
-                    plugin.logger.warning("Towny API is null, skipping protection check")
+                    if (plugin.isDebugEnabled()) {
+                        plugin.logger.warning("Towny API is null, skipping protection check")
+                    }
                     return
                 }
 
@@ -82,14 +89,18 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                 val getTownMethod = try {
                     townyAPIClass.getMethod("getTown", Location::class.java)
                 } catch (e: Exception) {
-                    plugin.logger.warning("Error finding getTown method: ${e.message}")
+                    if (plugin.isDebugEnabled()) {
+                        plugin.logger.warning("Error finding getTown method: ${e.message}")
+                    }
                     return
                 }
 
                 val town = try {
                     getTownMethod.invoke(townyAPI, targetLoc)
                 } catch (e: Exception) {
-                    plugin.logger.warning("Error calling getTown: ${e.message}")
+                    if (plugin.isDebugEnabled()) {
+                        plugin.logger.warning("Error calling getTown: ${e.message}")
+                    }
                     return
                 }
 
@@ -108,7 +119,7 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                                 warResult = method.invoke(townyAPI) as? Boolean ?: false
                                 methodFound = true
                                 // Debug message for successful method
-                                if (plugin.config.getBoolean("debug", false)) {
+                                if (plugin.isDebugEnabled()) {
                                     plugin.logger.info("Successfully used war check method: $methodName")
                                 }
                                 break
@@ -118,13 +129,15 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                             }
                         }
 
-                        if (!methodFound && plugin.config.getBoolean("debug", false)) {
+                        if (!methodFound && plugin.isDebugEnabled()) {
                             plugin.logger.warning("No war check methods found in Towny API")
                         }
 
                         warResult
                     } catch (e: Exception) {
-                        plugin.logger.warning("Error checking war status: ${e.message}")
+                        if (plugin.isDebugEnabled()) {
+                            plugin.logger.warning("Error checking war status: ${e.message}")
+                        }
                         false // Default to no war if method fails
                     }
 
@@ -142,7 +155,9 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                                 val hasResidentMethod = townClass.getMethod("hasResident", String::class.java)
                                 hasResidentMethod.invoke(town, damager.uniqueId.toString()) as? Boolean ?: false
                             } catch (e2: Exception) {
-                                plugin.logger.warning("Error checking residence: ${e2.message}")
+                                if (plugin.isDebugEnabled()) {
+                                    plugin.logger.warning("Error checking residence: ${e2.message}")
+                                }
                                 false // Default to not resident if method fails
                             }
                         }
@@ -162,7 +177,9 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                                         val isPVPMethod = townClass.getMethod("getPVP")
                                         isPVPMethod.invoke(town) as? Boolean ?: false
                                     } catch (e3: Exception) {
-                                        plugin.logger.warning("Error checking PVP status: ${e3.message}")
+                                        if (plugin.isDebugEnabled()) {
+                                            plugin.logger.warning("Error checking PVP status: ${e3.message}")
+                                        }
                                         false // Default to PVP not allowed if method fails
                                     }
                                 }
@@ -175,7 +192,7 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                                 // If target is a player OR (target is a mob AND we protect mobs)
                                 if (target is Player || protectMobs) {
                                     // Debug message
-                                    if (plugin.config.getBoolean("debug", false)) {
+                                    if (plugin.isDebugEnabled()) {
                                         plugin.logger.info("Blocking attack: target=${target.type}, isPlayer=${target is Player}, protectMobs=$protectMobs")
                                     }
 
@@ -189,15 +206,14 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                     }
                 }
             } catch (e: Exception) {
-                plugin.logger.warning("Error checking Towny protection: ${e.message}")
-                // Add stack trace printing for more detailed debugging
-                if (plugin.config.getBoolean("debug", false)) {
+                if (plugin.isDebugEnabled()) {
+                    plugin.logger.warning("Error checking Towny protection: ${e.message}")
+                    // Add stack trace printing for more detailed debugging
                     e.printStackTrace()
                 }
             }
         }
 
-        // Rest of the code remains unchanged...
         // Skip if the attacker is not a player
         if (damager !is Player) return
 
@@ -211,7 +227,6 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
         if (entitiesBeingDamaged.contains(targetUuid)) {
             return
         }
-
 
         val lance = damager.inventory.itemInMainHand
         val meta = lance.itemMeta
@@ -255,7 +270,7 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                 target.damage(damage)
 
                 // Only for debug - can be disabled in production
-                if (plugin.config.getBoolean("debug", false)) {
+                if (plugin.isDebugEnabled()) {
                     plugin.logger.info("Entity hit with momentum: $momentum, damage: $damage, entity type: ${target.type}")
                 }
 
@@ -320,7 +335,9 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                 damager.world.playSound(target.location, hitSound, 1f, 1f)
             } catch (e: IllegalArgumentException) {
                 // Log invalid sound and fall back to default
-                plugin.logger.warning("Invalid sound in config: $hitSoundString. Using default sound.")
+                if (plugin.isDebugEnabled()) {
+                    plugin.logger.warning("Invalid sound in config: $hitSoundString. Using default sound.")
+                }
                 damager.world.playSound(target.location, Sound.ENTITY_SLIME_ATTACK, 1f, 1f)
             }
         } finally {
@@ -328,6 +345,8 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
             entitiesBeingDamaged.remove(targetUuid)
         }
     }
+
+
 
     @EventHandler
     fun onPlayerMove(event: PlayerMoveEvent) {
@@ -351,22 +370,37 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
 
             if (distance < movementThreshold) {
                 // Horse isn't moving (or moving very little)
-                val stallTime = plugin.config.getLong("momentum.stallTimeMs", 1000) // 1 second default
+                val stallTime = plugin.config.getLong("momentum.stallTimeMs", 500) // 0.5 seconds
                 val lastMoveTime = horseLastMoveMap.getOrDefault(horseUuid, currentTime)
 
                 if (currentTime - lastMoveTime > stallTime) {
                     // Horse has been still for the configured time
-                    MomentumUtils.resetMomentum(player)
-                    updateMomentumBar(player)
+                    // Get momentum decay rate (how quickly momentum drops when standing still)
+                    val decayRate = momentumDecayRates.getOrDefault(horseUuid, 5)
+                    val maxDecayRate = plugin.config.getInt("momentum.maxDecayRate", 20)
 
+                    // Rapidly drop momentum, but not instantly
+                    MomentumUtils.reduceMomentum(player, decayRate)
+
+                    // Increase decay rate for progressive momentum loss
+                    momentumDecayRates[horseUuid] = (decayRate + 2).coerceAtMost(maxDecayRate)
+
+                    updateMomentumBar(player)
                     // Use only sound feedback for stopping - minimal particles
                     if (plugin.config.getBoolean("effects.showStopEffects", true)) {
                         player.world.playSound(horse.location, Sound.ENTITY_HORSE_BREATHE, 0.5f, 0.8f)
+                    }
+
+                    if (plugin.isDebugEnabled() && MomentumUtils.getMomentum(player) % 10 == 0) {
+                        plugin.logger.info("Player ${player.name} momentum decaying: ${MomentumUtils.getMomentum(player)}")
                     }
                 }
             } else {
                 // Horse is moving, update last move time
                 horseLastMoveMap[horseUuid] = currentTime
+
+                // Reset decay rate when moving again
+                momentumDecayRates[horseUuid] = 5
 
                 // Calculate the difference in yaw (angle change)
                 val yawDifference = Math.abs(angleDifference(currentYaw, previousYaw))
@@ -382,15 +416,22 @@ class HorseCombatListener(private val plugin: HorsecombatRevampedAgain) : Listen
                     if (plugin.config.getBoolean("effects.showTurnEffects", true)) {
                         player.world.playSound(horse.location, Sound.ENTITY_HORSE_BREATHE, 1f, 1f)
                     }
+
+                    if (plugin.isDebugEnabled()) {
+                        plugin.logger.info("Player ${player.name} turning: momentum ${MomentumUtils.getMomentum(player)}")
+                    }
                 } else {
                     // Straight movement, increase momentum
                     val momentumGain = plugin.config.getInt("momentum.straightGain", 1)
                     MomentumUtils.increaseMomentum(player, momentumGain)
                     updateMomentumBar(player)
+
+                    if (plugin.isDebugEnabled() && MomentumUtils.getMomentum(player) % 10 == 0) {
+                        plugin.logger.info("Player ${player.name} momentum increasing: ${MomentumUtils.getMomentum(player)}")
+                    }
                 }
             }
 
-            // Update the stored values
             horseYawMap[horseUuid] = currentYaw
             horseLocationMap[horseUuid] = currentLocation
         }

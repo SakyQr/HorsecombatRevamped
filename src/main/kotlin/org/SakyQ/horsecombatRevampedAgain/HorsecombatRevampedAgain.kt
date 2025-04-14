@@ -1,8 +1,6 @@
 package org.SakyQ.horsecombatRevampedAgain
 
-import org.SakyQ.horsecombatRevampedAgain.Commands.GiveLanceCommand
-import org.SakyQ.horsecombatRevampedAgain.Commands.GiveLanceTabCompleter
-import org.SakyQ.horsecombatRevampedAgain.Commands.HorseCombatTabCompleter
+import org.SakyQ.horsecombatRevampedAgain.listeners.HorseCombatListener
 import org.SakyQ.horsecombatRevampedAgain.managers.CommandManager
 import org.SakyQ.horsecombatRevampedAgain.managers.ListenerManager
 import org.SakyQ.horsecombatRevampedAgain.managers.PlaceholderManager
@@ -23,10 +21,21 @@ class HorsecombatRevampedAgain : JavaPlugin() {
         private set
     lateinit var commandManager: CommandManager
         private set
+    lateinit var horseCombatListener: HorseCombatListener
+        private set
+
+    // Debug flag for more verbose logging
+    private var debugMode = false
 
     override fun onEnable() {
         // Save default config if it doesn't exist
         saveDefaultConfig()
+
+        // Initialize debug mode
+        debugMode = config.getBoolean("debug", false)
+        if (debugMode) {
+            logger.info("Debug mode enabled!")
+        }
 
         // Initialize managers - order matters here
         townyManager = TownyManager(this)
@@ -34,11 +43,16 @@ class HorsecombatRevampedAgain : JavaPlugin() {
         placeholderManager = PlaceholderManager(this, listenerManager.getHorseSpawnListener())
         commandManager = CommandManager(this)
 
+        // Initialize legacy listener (for backward compatibility)
+        horseCombatListener = HorseCombatListener(this)
+        server.pluginManager.registerEvents(horseCombatListener, this)
+
         // Initialize systems
         townyManager.initialize()
         listenerManager.registerAllListeners()
         placeholderManager.setupPlaceholders()
         commandManager.registerCommands()
+
 
         logger.info("HorseCombatRevampedAgain enabled successfully!")
     }
@@ -57,6 +71,7 @@ class HorsecombatRevampedAgain : JavaPlugin() {
     // Method to reload the plugin
     fun reloadPlugin() {
         reloadConfig()
+        debugMode = config.getBoolean("debug", false)
         townyManager.initialize()
         listenerManager.getHorseSpawnListener().loadRegionsFromConfig()
         logger.info("HorseCombatRevampedAgain configuration reloaded")
@@ -66,4 +81,16 @@ class HorsecombatRevampedAgain : JavaPlugin() {
     fun shouldRespectTowny(): Boolean = townyManager.shouldRespectTowny()
     fun getTownyAPI(): Any? = townyManager.getTownyAPI()
     fun getTownAtLocation(loc: Location): Pair<Boolean, String?> = townyManager.getTownAtLocation(loc)
+
+    // Method to check debug status
+    fun isDebugEnabled(): Boolean {
+        return debugMode
+    }
+
+    // Toggle debug mode
+    fun toggleDebugMode() {
+        debugMode = !debugMode
+        config.set("debug", debugMode)
+        saveConfig()
+    }
 }

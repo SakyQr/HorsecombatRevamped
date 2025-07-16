@@ -1,96 +1,142 @@
 package org.SakyQ.horsecombatRevampedAgain
 
+import org.SakyQ.horsecombatRevampedAgain.integration.TownyManager
 import org.SakyQ.horsecombatRevampedAgain.listeners.HorseCombatListener
-import org.SakyQ.horsecombatRevampedAgain.managers.CommandManager
-import org.SakyQ.horsecombatRevampedAgain.managers.ListenerManager
-import org.SakyQ.horsecombatRevampedAgain.managers.PlaceholderManager
-import org.SakyQ.horsecombatRevampedAgain.managers.TownyManager
+import org.SakyQ.horsecombatRevampedAgain.managers.*
+import org.SakyQ.horsecombatRevampedAgain.utils.MomentumUtils
 import org.bukkit.Location
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
+import org.bukkit.event.EventHandler
+import org.bukkit.event.Listener
+import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.plugin.java.JavaPlugin
 
-class HorsecombatRevampedAgain : JavaPlugin() {
+/**
+ * Simplified main plugin class
+ * - Reduced initialization complexity
+ * - Cleaner error handling
+ * - Simplified manager structure
+ */
+class HorsecombatRevampedAgain : JavaPlugin(), Listener {
 
-    // Managers - making these public so they can be accessed from listeners
-    lateinit var listenerManager: ListenerManager
-        private set
-    lateinit var placeholderManager: PlaceholderManager
-        private set
+    // Core systems only
     lateinit var townyManager: TownyManager
-        private set
-    lateinit var commandManager: CommandManager
-        private set
+    lateinit var worldGuardManager: WorldGuardManager
     lateinit var horseCombatListener: HorseCombatListener
-        private set
+    lateinit var particleManager: ParticleManager
+    lateinit var commandManager: CommandManager
+    lateinit var recipeManager: RecipeManager
 
-    // Debug flag for more verbose logging
     private var debugMode = false
 
     override fun onEnable() {
-        // Save default config if it doesn't exist
-        saveDefaultConfig()
+        try {
+            logger.info("Starting HorseCombat v${description.version}...")
 
-        // Initialize debug mode
-        debugMode = config.getBoolean("debug", false)
-        if (debugMode) {
-            logger.info("Debug mode enabled!")
+            // Initialize core systems
+            saveDefaultConfig()
+            debugMode = config.getBoolean("debug", false)
+
+            // Initialize momentum system
+            MomentumUtils.initialize(this)
+
+            // Initialize managers (simplified order)
+            initializeManagers()
+
+            // Register events
+            server.pluginManager.registerEvents(this, this)
+            server.pluginManager.registerEvents(horseCombatListener, this)
+
+            // Initialize systems
+            initializeSystems()
+
+            logger.info("HorseCombat enabled successfully!")
+
+        } catch (e: Exception) {
+            logger.severe("Failed to enable HorseCombat: ${e.message}")
+            server.pluginManager.disablePlugin(this)
         }
-
-        // Initialize managers - order matters here
-        townyManager = TownyManager(this)
-        listenerManager = ListenerManager(this)
-        placeholderManager = PlaceholderManager(this, listenerManager.getHorseSpawnListener())
-        commandManager = CommandManager(this)
-
-        // Initialize legacy listener (for backward compatibility)
-        horseCombatListener = HorseCombatListener(this)
-        server.pluginManager.registerEvents(horseCombatListener, this)
-
-        // Initialize systems
-        townyManager.initialize()
-        listenerManager.registerAllListeners()
-        placeholderManager.setupPlaceholders()
-        commandManager.registerCommands()
-
-
-        logger.info("HorseCombatRevampedAgain enabled successfully!")
     }
 
     override fun onDisable() {
-        logger.info("HorseCombatRevampedAgain disabled")
+        try {
+            logger.info("Disabling HorseCombat...")
+
+            // Cleanup in simple order
+            if (::horseCombatListener.isInitialized) horseCombatListener.cleanup()
+            MomentumUtils.cleanup()
+            server.scheduler.cancelTasks(this)
+
+            logger.info("HorseCombat disabled successfully")
+        } catch (e: Exception) {
+            logger.warning("Error during disable: ${e.message}")
+        }
+    }
+
+    @EventHandler
+    fun onPlayerQuit(event: PlayerQuitEvent) {
+        MomentumUtils.cleanupPlayer(event.player)
+        if (::horseCombatListener.isInitialized) {
+            horseCombatListener.cleanupPlayer(event.player)
+        }
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
-        if (command.name.equals("horsecombat", ignoreCase = true)) {
-            return commandManager.handleHorseCombatCommand(sender, args)
-        }
-        return false
+        return if (command.name.equals("horsecombat", ignoreCase = true) && ::commandManager.isInitialized) {
+            commandManager.handleHorseCombatCommand(sender, args)
+        } else false
     }
 
-    // Method to reload the plugin
-    fun reloadPlugin() {
-        reloadConfig()
-        debugMode = config.getBoolean("debug", false)
+    // === PRIVATE INITIALIZATION METHODS ===
+    private fun initializeManagers() {
+        townyManager = TownyManager(this)
+        worldGuardManager = WorldGuardManager(this)
+        particleManager = ParticleManager(this)
+        horseCombatListener = HorseCombatListener(this)
+        commandManager = CommandManager(this)
+        recipeManager = RecipeManager(this)
+    }
+
+    private fun initializeSystems() {
         townyManager.initialize()
-        listenerManager.getHorseSpawnListener().loadRegionsFromConfig()
-        logger.info("HorseCombatRevampedAgain configuration reloaded")
+        worldGuardManager.initialize()
+        particleManager.loadParticleEffects()
+        commandManager.registerCommands()
+        recipeManager.registerRecipes()
     }
 
-    // These methods are kept for backward compatibility with existing listeners
-    fun shouldRespectTowny(): Boolean = townyManager.shouldRespectTowny()
-    fun getTownyAPI(): Any? = townyManager.getTownyAPI()
-    fun getTownAtLocation(loc: Location): Pair<Boolean, String?> = townyManager.getTownAtLocation(loc)
-
-    // Method to check debug status
-    fun isDebugEnabled(): Boolean {
-        return debugMode
+    // === PUBLIC API (Simplified) ===
+    fun reloadPlugin() {
+        try {
+            reloadConfig()
+            debugMode = config.getBoolean("debug", false)
+            townyManager.initialize()
+            worldGuardManager.initialize()
+            particleManager.loadParticleEffects()
+            logger.info("Configuration reloaded")
+        } catch (e: Exception) {
+            logger.severe("Error reloading: ${e.message}")
+        }
     }
 
-    // Toggle debug mode
+    fun isDebugEnabled(): Boolean = debugMode
+
     fun toggleDebugMode() {
         debugMode = !debugMode
         config.set("debug", debugMode)
         saveConfig()
+        logger.info("Debug mode: ${if (debugMode) "ON" else "OFF"}")
+    }
+
+    // === INTEGRATION HELPERS ===
+    fun shouldRespectTowny(): Boolean = ::townyManager.isInitialized && townyManager.shouldRespectTowny()
+
+    fun shouldRespectWorldGuard(): Boolean = ::worldGuardManager.isInitialized && worldGuardManager.isWorldGuardEnabled()
+
+    fun isCombatAllowedAtLocation(loc: Location): Boolean {
+        return if (::worldGuardManager.isInitialized) {
+            worldGuardManager.isCombatAllowed(loc)
+        } else true
     }
 }

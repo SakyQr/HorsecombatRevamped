@@ -3,17 +3,17 @@ package org.SakyQ.horsecombatRevampedAgain.Commands
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.command.TabCompleter
-import org.bukkit.entity.Player
 
 class HorseCombatTabCompleter : TabCompleter {
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): List<String>? {
         if (args.size == 1) {
             val subcommands = mutableListOf<String>()
 
-            // Add subcommands based on permissions
-            subcommands.add("checkregion") // Available to all players
+            // Always available commands
+            subcommands.add("help")
 
-            if (sender.hasPermission("horsecombat.reload")) {
+            // Permission-based commands
+            if (sender.hasPermission("horsecombat.admin.reload")) {
                 subcommands.add("reload")
             }
 
@@ -21,8 +21,9 @@ class HorseCombatTabCompleter : TabCompleter {
                 subcommands.add("debug")
             }
 
-            if (sender.hasPermission("horsecombat.admin")) {
-                subcommands.add("spawnhorse")
+            if (sender.hasPermission("horsecombat.admin.gui")) {
+                subcommands.add("gui")
+                subcommands.add("admin")
             }
 
             // Filter by what the player has already typed
@@ -30,7 +31,6 @@ class HorseCombatTabCompleter : TabCompleter {
             return subcommands.filter { it.startsWith(partialCommand) }
         }
 
-        // No suggestions for additional arguments
         return emptyList()
     }
 }
